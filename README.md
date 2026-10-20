@@ -3,7 +3,7 @@
 **The collected discourses of Osho — one quiet place to listen.**
 
 OSHOIC is a fan-made listening space for the complete **OSHO WORLD** audio
-archive: **295 discourses** in **Hindi and English**, with **thousands of
+archive: every discourse in **Hindi and English**, with **thousands of
 lectures**, streamed live (never re-hosted) from the public Internet Archive
 collection:
 
@@ -60,7 +60,7 @@ server.js            zero-dependency static server
 public/
   index.html         app shell (header, dock, footer)
   css/styles.css     design system
-  js/data.js         baked-in catalogue (295 discourses, exact folder names)
+  js/data.js         baked-in catalogue (exact folder names)
   js/util.js         parsing, slugs, formatters, storage
   js/library.js      runtime sync engine (S3 + metadata API + cache)
   js/player.js       audio engine + dock
@@ -70,6 +70,6 @@ public/
 
 ## A note
 
-Made with reverence, for personal spiritual study. Osho (1889–1990) —
+For personal spiritual study. Osho (1889–1990) —
 *Deathless Osho*. Gratitude to Osho World, the uploader, and the curators at
 the Internet Archive.

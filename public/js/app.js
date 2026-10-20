@@ -101,29 +101,20 @@ const SVG = {
 
 /* ---------------- views ---------------- */
 function viewHome() {
-  const s = lib.stats();
   const cont = lastPlayed();
   const featured = FEATURED.map(t => lib.discourses.find(d => d.t.toLowerCase().includes(t.toLowerCase()))).filter(Boolean).slice(0, 6);
   const themes = THEME_LIST.map(tm => ({ ...tm, c: lib.discourses.filter(d => themeOf(d.t) === tm.id).length })).filter(t => t.c >= 3);
-  const hourStat = s.hours ? `<span><b>${fmtNum(s.hours)}</b> hours of teaching</span>` : "";
 
   return `
   <section class="hero">
     <div class="hero-inner">
-      <p class="hero-eyebrow">The collected discourses of Osho</p>
       <h1 class="hero-title">OSHO<em>IC</em></h1>
-      <p class="hero-sub">Every teaching, one quiet place. <b>${fmtNum(s.discourses)}</b> discourses in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
+      <p class="hero-sub">Every teaching, one quiet place. Discourses in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
       <div class="hero-cta">
-        <a class="btn primary" href="#/browse">Browse the archive</a>
+        <a class="btn primary" href="#/browse">brwose</a>
         ${featured[0] ? `<a class="btn ghost" href="#/d/${encodeURIComponent(featured[0].key)}">Start with ${escapeHtml(featured[0].t)}</a>` : ""}
       </div>
       <div class="hero-quote" id="hero-quote">${quoteLine(0)}</div>
-      <div class="hero-note">
-        <span><b>${fmtNum(s.discourses)}</b> discourses</span>
-        <span>·</span>
-        <span><b>2</b> languages</span>
-        ${hourStat ? `<span>·</span><span>${hourStat}</span>` : ""}
-      </div>
     </div>
   </section>
 
@@ -192,7 +183,6 @@ function viewHome() {
       <p>Every teaching lives here — in Hindi and English — gathered lecture by lecture. Open one, and let it do its work.</p>
     </div>
     <div class="source-actions">
-      <span class="madeby">made with reverence · <b>ifallertzia</b></span>
       <button class="btn ghost" id="btn-refresh">${SVG.ref} Refresh library</button>
     </div>
   </section>`;
@@ -486,6 +476,28 @@ function syncBadgeHtml() {
   return `<span class="syncb" title="Catalogue loaded from the built-in list">Library ready</span>`;
 }
 
+/* ---------------- mobile menu ---------------- */
+const menuBtn = document.getElementById("menu-btn");
+const navMenu = document.getElementById("nav-menu");
+
+function setMenu(open) {
+  if (!navMenu || !menuBtn) return;
+  navMenu.classList.toggle("open", open);
+  menuBtn.classList.toggle("open", open);
+  menuBtn.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("nav-open", open);
+}
+
+if (menuBtn && navMenu) {
+  menuBtn.addEventListener("click", () => setMenu(!navMenu.classList.contains("open")));
+  navMenu.querySelectorAll("a").forEach(a => a.addEventListener("click", () => setMenu(false)));
+  // tapping the empty part of the overlay closes it
+  navMenu.addEventListener("click", e => { if (e.target === navMenu) setMenu(false); });
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape" && navMenu.classList.contains("open")) setMenu(false);
+  });
+}
+
 /* ---------------- render & route ---------------- */
 const view = document.getElementById("view");
 
@@ -503,10 +515,7 @@ function render(scroll = true) {
   else html = viewHome();
 
   document.getElementById("syncb-slot").innerHTML = syncBadgeHtml();
-  const navMenu = document.getElementById("nav-menu");
-  const menuBtn = document.getElementById("menu-btn");
-  if (navMenu) { navMenu.classList.remove("open"); }
-  if (menuBtn) { menuBtn.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }
+  setMenu(false);
   view.innerHTML = html;
   const navPage = state.page === "d" ? "browse" : state.page;
   document.querySelectorAll("nav.main a").forEach(a => a.classList.toggle("on", a.dataset.nav === navPage));
@@ -683,29 +692,6 @@ if (!fresh) setTimeout(() => lib.startSync(), 800);
 else lib.sync = { state: "done", done: 0, pages: 0, error: null };
 
 player.wire(document.getElementById("dock"));
-
-/* mobile menu */
-const menuBtn = document.getElementById("menu-btn");
-const navMenu = document.getElementById("nav-menu");
-if (menuBtn && navMenu) {
-  menuBtn.addEventListener("click", () => {
-    const open = navMenu.classList.toggle("open");
-    menuBtn.classList.toggle("open", open);
-    menuBtn.setAttribute("aria-expanded", String(open));
-  });
-  navMenu.querySelectorAll("a").forEach(a => a.addEventListener("click", () => {
-    navMenu.classList.remove("open");
-    menuBtn.classList.remove("open");
-    menuBtn.setAttribute("aria-expanded", "false");
-  }));
-  window.addEventListener("keydown", e => {
-    if (e.key === "Escape" && navMenu.classList.contains("open")) {
-      navMenu.classList.remove("open");
-      menuBtn.classList.remove("open");
-      menuBtn.setAttribute("aria-expanded", "false");
-    }
-  });
-}
 
 window.addEventListener("hashchange", () => render());
 render();
