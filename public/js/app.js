@@ -97,46 +97,33 @@ const SVG = {
   ext: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M14 5h5v5M19 5l-8 8M19 13v6H5V5h6"/></svg>',
   search: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" d="M20 20l-4-4"/></svg>',
   ref: '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>',
-  mandala: (() => {
-    let petals = "", inner = "";
-    for (let i = 0; i < 12; i++) petals += `<path d="M200 52 C 212 96, 212 132, 200 158 C 188 132, 188 96, 200 52 Z" transform="rotate(${i * 30} 200 200)"/>`;
-    for (let i = 0; i < 12; i++) inner += `<path d="M200 118 C 208 142, 208 166, 200 182 C 192 166, 192 142, 200 118 Z" transform="rotate(${i * 30 + 15} 200 200)"/>`;
-    return `<svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <g stroke="rgba(232,176,75,.20)" stroke-width="1">
-        <circle cx="200" cy="200" r="198" stroke-dasharray="1 7"/>
-        <circle cx="200" cy="200" r="168"/>
-        <circle cx="200" cy="200" r="106" stroke-dasharray="2 9"/>
-        <circle cx="200" cy="200" r="58"/>
-      </g>
-      <g stroke="rgba(232,176,75,.30)" stroke-width="1.1">${petals}${inner}</g>
-      <circle cx="200" cy="200" r="5" fill="rgba(232,176,75,.55)"/>
-    </svg>`;
-  })(),
 };
 
 /* ---------------- views ---------------- */
 function viewHome() {
   const s = lib.stats();
   const cont = lastPlayed();
-  const featured = FEATURED.map(t => lib.discourses.find(d => d.t.toLowerCase().includes(t.toLowerCase()))).filter(Boolean).slice(0, 8);
+  const featured = FEATURED.map(t => lib.discourses.find(d => d.t.toLowerCase().includes(t.toLowerCase()))).filter(Boolean).slice(0, 6);
   const themes = THEME_LIST.map(tm => ({ ...tm, c: lib.discourses.filter(d => themeOf(d.t) === tm.id).length })).filter(t => t.c >= 3);
+  const hourStat = s.hours ? `<span><b>${fmtNum(s.hours)}</b> hours of teaching</span>` : "";
 
   return `
   <section class="hero">
-    <div class="hero-mandala" aria-hidden="true">${SVG.mandala || ""}</div>
     <div class="hero-inner">
-      <h1 class="hero-title">OSHO<span class="dot">IC</span></h1>
-      <p class="hero-sub">Every teaching, one quiet place. ${fmtNum(s.lectures)}+ lectures in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
+      <p class="hero-eyebrow">The collected discourses of Osho</p>
+      <h1 class="hero-title">OSHO<em>IC</em></h1>
+      <p class="hero-sub">Every teaching, one quiet place. <b>${fmtNum(s.discourses)}</b> discourses in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
       <div class="hero-cta">
-        <a class="btn gold" href="#/browse">Browse all discourses</a>
-        <a class="btn ghost" href="${featured[0] ? "#/d/" + encodeURIComponent(featured[0].key) : "#/browse"}">${featured[0] ? "Start with " + escapeHtml(featured[0].t) : "Begin"}</a>
+        <a class="btn primary" href="#/browse">Browse the archive</a>
+        ${featured[0] ? `<a class="btn ghost" href="#/d/${encodeURIComponent(featured[0].key)}">Start with ${escapeHtml(featured[0].t)}</a>` : ""}
       </div>
       <div class="hero-quote" id="hero-quote">${quoteLine(0)}</div>
-    </div>
-    <div class="hero-stats">
-      <div class="stat"><b>${fmtNum(s.lectures)}+</b><span>lectures</span></div>
-      <div class="stat"><b>${s.hours ? fmtNum(s.hours) : "≈6,500"}${s.hours ? "" : "+"}</b><span>hours of teaching</span></div>
-      <div class="stat"><b>2</b><span>languages</span></div>
+      <div class="hero-note">
+        <span><b>${fmtNum(s.discourses)}</b> discourses</span>
+        <span>·</span>
+        <span><b>2</b> languages</span>
+        ${hourStat ? `<span>·</span><span>${hourStat}</span>` : ""}
+      </div>
     </div>
   </section>
 
@@ -150,7 +137,7 @@ function viewHome() {
         <h3 class="card-title${isDevanagari(cont.d.t) ? " dev" : ""}">${escapeHtml(cont.d.t)}</h3>
         <p class="card-meta">${cardMeta(cont.d)}</p>
       </div>
-      <button class="btn gold cont-play" data-continue>${SVG.play} Resume</button>
+      <button class="btn primary cont-play" data-continue>${SVG.play} Resume</button>
     </a>
   </section>` : ""}
 
@@ -331,7 +318,7 @@ function viewDiscourse(key) {
         <p class="page-sub">${d.tracks.length || d.n || "…"} lectures ${d.totalSecs ? "· " + fmtTotal(d.totalSecs) : ""} · Osho</p>
         ${d.desc ? `<p class="ddesc" id="ddesc">${escapeHtml(d.desc)}</p>` : ""}
         <div class="dhead-actions">
-          <button class="btn gold" data-playall ${loading ? "disabled" : ""}>${SVG.play} Play all</button>
+          <button class="btn primary" data-playall ${loading ? "disabled" : ""}>${SVG.play} Play all</button>
         </div>
       </div>
     </div>
@@ -486,7 +473,7 @@ function viewSadhana() {
 
   <div class="sadh-cta">
     <p>When the seat is ready, the teaching can speak.</p>
-    <a class="btn gold" href="#/browse">Sit with a discourse →</a>
+    <a class="btn primary" href="#/browse">Sit with a discourse →</a>
   </div>`;
 }
 
@@ -516,6 +503,10 @@ function render(scroll = true) {
   else html = viewHome();
 
   document.getElementById("syncb-slot").innerHTML = syncBadgeHtml();
+  const navMenu = document.getElementById("nav-menu");
+  const menuBtn = document.getElementById("menu-btn");
+  if (navMenu) { navMenu.classList.remove("open"); }
+  if (menuBtn) { menuBtn.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }
   view.innerHTML = html;
   const navPage = state.page === "d" ? "browse" : state.page;
   document.querySelectorAll("nav.main a").forEach(a => a.classList.toggle("on", a.dataset.nav === navPage));
@@ -635,8 +626,8 @@ function startHeroCycle() {
     const e = el();
     if (!e) return clearInterval(heroTimer);
     e.classList.add("fade");
-    setTimeout(() => { e.innerHTML = quoteLine(i); e.classList.remove("fade"); }, 450);
-  }, 9000);
+    setTimeout(() => { e.innerHTML = quoteLine(i); e.classList.remove("fade"); }, 600);
+  }, 12000);
 }
 
 /* ---------------- reveal-on-scroll ---------------- */
@@ -692,5 +683,29 @@ if (!fresh) setTimeout(() => lib.startSync(), 800);
 else lib.sync = { state: "done", done: 0, pages: 0, error: null };
 
 player.wire(document.getElementById("dock"));
+
+/* mobile menu */
+const menuBtn = document.getElementById("menu-btn");
+const navMenu = document.getElementById("nav-menu");
+if (menuBtn && navMenu) {
+  menuBtn.addEventListener("click", () => {
+    const open = navMenu.classList.toggle("open");
+    menuBtn.classList.toggle("open", open);
+    menuBtn.setAttribute("aria-expanded", String(open));
+  });
+  navMenu.querySelectorAll("a").forEach(a => a.addEventListener("click", () => {
+    navMenu.classList.remove("open");
+    menuBtn.classList.remove("open");
+    menuBtn.setAttribute("aria-expanded", "false");
+  }));
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape" && navMenu.classList.contains("open")) {
+      navMenu.classList.remove("open");
+      menuBtn.classList.remove("open");
+      menuBtn.setAttribute("aria-expanded", "false");
+    }
+  });
+}
+
 window.addEventListener("hashchange", () => render());
 render();

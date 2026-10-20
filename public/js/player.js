@@ -165,16 +165,55 @@ class Player {
     if (A.duration) A.currentTime = frac * A.duration;
   }
 
-  /* Download the current lecture (blob when allowed, new tab otherwise). */
+  _dlEl(id) { return document.getElementById("dock").querySelector("[data-p=" + id + "]"); }
+  _dlShow(pct) {
+    const root = document.getElementById("dock");
+    const overlay = root && root.querySelector("[data-p=dloverlay]");
+    const ring = root && root.querySelector(".dl-ring");
+    const pctEl = root && root.querySelector("[data-p=dlpct]");
+    if (!overlay) return;
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.add("show");
+    this._dlPct(pct);
+    if (ring) ring.style.strokeDashoffset = 122.5 * (1 - pct / 100);
+  }
+  _dlPct(pct) {
+    const pctEl = this._dlEl("dlpct");
+    const ring = document.getElementById("dock").querySelector(".dl-ring");
+    if (pctEl) pctEl.textContent = Math.round(pct) + "%";
+    if (ring) ring.style.strokeDashoffset = 122.5 * (1 - pct / 100);
+  }
+  _dlHide() {
+    const overlay = document.getElementById("dock").querySelector("[data-p=dloverlay]");
+    if (!overlay) return;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.classList.remove("show");
+  }
+
+  /* Download the current lecture with a live percentage circle. */
   async download() {
     const t = this.cur();
     if (!t || !t.file) { this.onToast && this.onToast("Play a lecture first — then you can save it."); return; }
     const url = fileUrl(t.file);
     const name = decodeURIComponent(t.file.split("/").pop() || "lecture.mp3");
+    this._dlCtrl = new AbortController();
+    this._dlShow(0);
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: this._dlCtrl.signal });
       if (!res.ok) throw new Error("http");
-      const blob = await res.blob();
+      const total = parseInt(res.headers.get("content-length") || "0", 10);
+      const reader = res.body.getReader();
+      const chunks = [];
+      let loaded = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.length;
+        if (total) this._dlPct((loaded / total) * 100);
+      }
+      this._dlHide();
+      const blob = new Blob(chunks, { type: res.headers.get("content-type") || "audio/mpeg" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = name;
@@ -182,10 +221,14 @@ class Player {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 60000);
-      this.onToast && this.onToast("Download started — “" + name + "”. 🙏");
+      this.onToast && this.onToast("Downloaded — “" + name + "”. 🙏");
     } catch (e) {
+      this._dlHide();
+      if (this._dlCtrl && e.name === "AbortError") { this.onToast && this.onToast("Download cancelled."); return; }
       window.open(url, "_blank", "noopener");
       this.onToast && this.onToast("Opening the lecture in a new tab — save it from there.");
+    } finally {
+      this._dlCtrl = null;
     }
   }
   setVol(v) {
@@ -259,6 +302,11 @@ class Player {
     if (this.el.vol) { this.el.vol.value = this._prefs.vol; }
 
     this.el.dl && this.el.dl.addEventListener("click", () => this.download());
+    const dlClose = root.querySelector("[data-p=dlclose]");
+    if (dlClose) dlClose.addEventListener("click", () => {
+      if (this._dlCtrl) this._dlCtrl.abort();
+      this._dlHide();
+    });
     this.el.play && this.el.play.addEventListener("click", () => this.toggle());
     this.el.prev && this.el.prev.addEventListener("click", () => this.prev());
     this.el.next && this.el.next.addEventListener("click", () => this.next(false));
