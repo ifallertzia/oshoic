@@ -1,6 +1,6 @@
 /* OSHOIC — player (audio engine + dock UI) */
 import lib from "./library.js";
-import { fileUrl, artUrl, fmtTime, folderArchiveUrl, store, PREFS_KEY, LAST_KEY, escapeHtml } from "./util.js";
+import { fileUrl, artUrl, fmtTime, store, PREFS_KEY, LAST_KEY, escapeHtml } from "./util.js";
 
 const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
 
@@ -39,6 +39,8 @@ class Player {
     this.el.root && this.el.root.classList.toggle("playing", playing);
     this.el.play && (this.el.play.innerHTML = playing ? ICONS.pause : ICONS.play);
     if (this.onChange) this.onChange({ playing, qi: this.qi, key: this.d && this.d.key, n: this.cur() && this.cur().n });
+    try { if ("mediaSession" in navigator) navigator.mediaSession.playbackState = playing ? "playing" : "paused"; } catch (e) {}
+    this.syncTitle();
   }
 
   _tick() {
@@ -132,7 +134,7 @@ class Player {
     this._errStreak++;
     if (this._errStreak >= 4) {
       this.a.pause();
-      this.onToast && this.onToast("Several lectures failed to load. Try again in a moment, or open it on archive.org.", 6000);
+      this.onToast && this.onToast("Several lectures failed to load. Try again in a moment.", 6000);
       this._emit();
       return;
     }
@@ -163,16 +165,31 @@ class Player {
     if (!("mediaSession" in navigator)) return;
     const t = this.cur();
     try {
-      navigator.mediaSession.metadata = new MediaMetadata({
+      const meta = {
         title: t ? (t.t || "Lecture " + pad2(t.n)) : "Osho",
         artist: "Osho",
         album: this.d ? this.d.t : "OSHOIC",
-      });
+      };
+      const art = t && artUrl(t.file);
+      if (art) meta.artwork = [{ src: art, sizes: "300x300", type: "image/png" }];
+      navigator.mediaSession.metadata = new MediaMetadata(meta);
       navigator.mediaSession.setActionHandler("play", () => this._play());
       navigator.mediaSession.setActionHandler("pause", () => this.a.pause());
       navigator.mediaSession.setActionHandler("previoustrack", () => this.prev());
       navigator.mediaSession.setActionHandler("nexttrack", () => this.next());
+      navigator.mediaSession.setActionHandler("seekbackward", () => { if (this.a.duration) this.a.currentTime = Math.max(0, this.a.currentTime - 15); });
+      navigator.mediaSession.setActionHandler("seekforward", () => { if (this.a.duration) this.a.currentTime = Math.min(this.a.duration, this.a.currentTime + 15); });
+      navigator.mediaSession.playbackState = (!this.a.paused && !this.a.ended) ? "playing" : "paused";
     } catch (e) {}
+  }
+
+  /* Keep the tab title honest while audio runs in the background. */
+  setBaseTitle(t) { this._baseTitle = t; this.syncTitle(); }
+  syncTitle() {
+    if (this._baseTitle == null) return;
+    const t = this.cur();
+    const playing = this.queue.length && t && !this.a.paused && !this.a.ended;
+    document.title = playing ? "▶ " + (t.t || "Lecture " + pad2(t.n)) + " · OSHOIC" : this._baseTitle;
   }
 
   _saveLast() {

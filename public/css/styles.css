@@ -706,6 +706,83 @@ body.has-player footer.site { padding-bottom: calc(70px + var(--dock-h)); }
 }
 .big-quote span { display: block; margin-top: 10px; font-family: var(--sans); font-style: normal; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 
+/* ---------- filter buttons & panels ---------- */
+.filters { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.filter-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px; border-radius: 999px;
+  border: 1px solid var(--line); background: transparent;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-dim);
+  transition: all .25s; cursor: pointer;
+}
+.filter-btn .lbl { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-btn .caret { font-size: 10px; transition: transform .25s; opacity: .7; }
+.filter-btn:hover { border-color: var(--line2); color: var(--ink); }
+.filter-btn.active { background: rgba(232, 176, 75, .14); border-color: var(--line2); color: var(--gold2); }
+.filter-btn.open { border-color: var(--gold); color: var(--ink); }
+.filter-btn.open .caret { transform: rotate(180deg); }
+.fpanel {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height .35s ease, opacity .3s ease, margin .35s ease;
+}
+.fpanel.open { max-height: 340px; opacity: 1; margin-top: 12px; }
+.fpanel-hint { font-size: 12.5px; color: var(--ink-faint); padding: 6px 4px; font-style: italic; }
+
+.madeby {
+  font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-faint); display: inline-flex; align-items: center;
+}
+.madeby b { color: var(--gold); letter-spacing: .14em; margin-left: 4px; }
+
+/* ---------- sadhana ---------- */
+.sadh-intro { margin-top: 34px; }
+.sadh-intro .big-quote { border-left-color: var(--gold); }
+.sadh-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 30px;
+}
+.sadh-card {
+  background: linear-gradient(160deg, rgba(255,255,255,.028), rgba(255,255,255,.008));
+  border: 1px solid var(--line); border-radius: 18px;
+  padding: 26px 26px 22px;
+  transition: border-color .3s, transform .3s;
+}
+.sadh-card:hover { border-color: var(--line2); transform: translateY(-2px); }
+.sadh-meta {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--gold); margin: 0 0 8px;
+}
+.sadh-card h3 { font-family: var(--serif); font-size: 25px; font-weight: 600; margin: 0 0 8px; }
+.sadh-intro-p { color: var(--ink-dim); font-size: 13.5px; line-height: 1.65; margin: 0 0 14px; }
+.sadh-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.sadh-steps li { display: flex; gap: 12px; align-items: flex-start; }
+.sadh-steps .num {
+  flex: 0 0 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--line2); background: rgba(232,176,75,.08);
+  color: var(--gold2); font-size: 12px; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.sadh-steps span { font-size: 13px; color: var(--ink-dim); line-height: 1.6; }
+.sadh-step-h { color: var(--ink); font-size: 13.5px; }
+.sadh-prayers {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px;
+}
+.prayer-card {
+  background: linear-gradient(160deg, rgba(232,176,75,.05), rgba(255,255,255,.008));
+  border: 1px solid var(--line); border-radius: 18px; padding: 26px;
+}
+.prayer-card h3 { font-family: var(--serif); font-size: 24px; font-weight: 600; margin: 0 0 12px; }
+.prayer {
+  font-family: var(--serif); font-size: 16px; line-height: 1.9; color: var(--ink);
+  margin: 0; white-space: pre-wrap;
+}
+.sadh-cta {
+  margin-top: 40px; padding: 30px; text-align: center;
+  border: 1px solid var(--line); border-radius: 18px;
+  background: rgba(232,176,75,.04);
+}
+.sadh-cta p { font-family: var(--serif); font-size: 20px; margin: 0 0 16px; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 960px) {
   .dlayout { grid-template-columns: 1fr; }
@@ -726,7 +803,9 @@ body.has-player footer.site { padding-bottom: calc(70px + var(--dock-h)); }
   .volwrap { display: none; }
 }
 @media (max-width: 700px) {
-  nav.main { display: none; }
+  nav.main { display: flex; gap: 2px; }
+  nav.main a { padding: 6px 8px; font-size: 11px; letter-spacing: .04em; }
+  .syncb { display: none; }
   .hero-stats { grid-template-columns: repeat(2, 1fr); }
   .lang-duo { grid-template-columns: 1fr; }
   .continue { grid-template-columns: 84px 1fr; }
@@ -735,6 +814,7 @@ body.has-player footer.site { padding-bottom: calc(70px + var(--dock-h)); }
   .dcover { max-width: 200px; }
   .about-body { grid-template-columns: 1fr; }
   .about-body .about-medallion { margin: 0 auto; }
+  .sadh-grid, .sadh-prayers { grid-template-columns: 1fr; }
   .toolbar { top: 60px; }
   .speedbtn { min-width: 40px; }
 }

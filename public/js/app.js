@@ -5,8 +5,8 @@ import { BAKED, FEATURED } from "./data.js";
 import { QUOTES, HERO_LINES } from "./quotes.js";
 import {
   escapeHtml, fmtNum, fmtTime, fmtTotal, isDevanagari,
-  themeOf, THEME_LIST, THEME_LABEL, artUrl, folderArchiveUrl,
-  store, CAT_KEY, LAST_KEY, IA_DETAILS,
+  themeOf, THEME_LIST, THEME_LABEL, artUrl,
+  store, CAT_KEY, LAST_KEY,
 } from "./util.js";
 
 /* ---------------- toasts ---------------- */
@@ -32,6 +32,7 @@ const state = {
   q: "",
   sort: "az",
   dKey: null,
+  openPanel: null,
 };
 
 function parseHash() {
@@ -128,7 +129,7 @@ function viewHome() {
     <div class="hero-inner">
       <p class="hero-eyebrow">The Collected Discourses · ${fmtNum(s.discourses)} discourses · हिन्दी + English</p>
       <h1 class="hero-title">OSHO<span class="dot">IC</span></h1>
-      <p class="hero-sub">Every teaching, one quiet place. Stream the complete Osho World archive — ${fmtNum(s.lectures)}+ lectures in Hindi and English, played straight from the Internet Archive.</p>
+      <p class="hero-sub">Every teaching, one quiet place. ${fmtNum(s.discourses)} discourses — ${fmtNum(s.lectures)}+ lectures in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
       <div class="hero-cta">
         <a class="btn gold" href="#/browse">Browse all discourses</a>
         <a class="btn ghost" href="${featured[0] ? "#/d/" + encodeURIComponent(featured[0].key) : "#/browse"}">${featured[0] ? "Start with " + escapeHtml(featured[0].t) : "Begin"}</a>
@@ -192,17 +193,18 @@ function viewHome() {
     <div class="about-medallion" aria-hidden="true">ॐ</div>
     <div class="about-copy">
       <h2>The man behind the voice</h2>
-      <p>Osho (born Chandra Mohan Jain, 1889–1990) was an Indian mystic and former professor of philosophy. For decades he spoke — about Zen and Tao, Upanishads and the Gita, Sufis and saints, love and death — in hundreds of discourses that this archive gathers, lecture by lecture. Sit with a teaching the way you would with a fire: close, and slowly.</p>
+      <p>Osho (born Chandra Mohan Jain, 1889–1990) was an Indian mystic and former professor of philosophy. For decades he spoke — about Zen and Tao, Upanishads and the Gita, Sufis and saints, love and death — in hundreds of discourses gathered here, lecture by lecture. Sit with a teaching the way you would with a fire: close, and slowly.</p>
       <p class="about-links"><a href="#/about">More about the collection ${SVG.ext}</a></p>
     </div>
   </section>
 
   <section class="section source-strip">
     <div>
-      <h3>Where the sound lives</h3>
-      <p>All audio is streamed (never downloaded or re-hosted) from the public Internet Archive collection <a href="${IA_DETAILS}" target="_blank" rel="noopener">“OSHO Discourses Collection” ${SVG.ext}</a>, uploaded by Osho World — thanks to the keepers of that archive.</p>
+      <h3>One quiet place</h3>
+      <p>Every teaching lives here — in Hindi and English — gathered lecture by lecture. Open one, and let it do its work.</p>
     </div>
     <div class="source-actions">
+      <span class="madeby">made with reverence · <b>ifallertzia</b></span>
       <button class="btn ghost" id="btn-refresh">${SVG.ref} Refresh library</button>
     </div>
   </section>`;
@@ -270,11 +272,23 @@ function viewBrowse() {
     </select>
   </div>
 
-  <div class="chips">
+  <div class="filters">
+    <button class="filter-btn ${state.openPanel === "theme" ? "open" : ""} ${state.theme ? "active" : ""}" data-fbtn="theme">
+      <span class="lbl">${state.theme ? escapeHtml(THEME_LABEL[state.theme] || state.theme) : "Select theme"}</span><span class="caret">▾</span>
+    </button>
+    <button class="filter-btn ${state.openPanel === "genre" ? "open" : ""} ${state.genre ? "active" : ""}" data-fbtn="genre">
+      <span class="lbl">${state.genre ? escapeHtml(state.genre) : "Show genres"}</span><span class="caret">▾</span>
+    </button>
+  </div>
+  <div class="fpanel ${state.openPanel === "theme" ? "open" : ""}" data-panel="theme">
     <button class="chip ${!state.theme ? "on" : ""}" data-theme="">All themes</button>
     ${THEME_LIST.map(t => `<button class="chip ${state.theme === t.id ? "on" : ""}" data-theme="${t.id}">${escapeHtml(t.label)}</button>`).join("")}
   </div>
-  ${topGenres.length ? `<div class="chips"><span class="chips-label">Genres</span>${topGenres.map(([g]) => `<button class="chip sm ${state.genre === g ? "on" : ""}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join("")}</div>` : ""}
+  <div class="fpanel ${state.openPanel === "genre" ? "open" : ""}" data-panel="genre">
+    ${topGenres.length
+      ? topGenres.map(([g]) => `<button class="chip sm ${state.genre === g ? "on" : ""}" data-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`).join("")
+      : '<span class="fpanel-hint">Genres will appear here once the library has finished syncing.</span>'}
+  </div>
 
   <div class="grid" id="results">
     ${list.map(d => discourseCard(d)).join("")}
@@ -290,13 +304,13 @@ function viewDiscourse(key) {
 
   const rowsHtml = loading
     ? `<div class="tracks loading">${Array.from({ length: 8 }, (_, i) => `<div class="row skel"><span class="rn">${pad2(i + 1)}</span><span class="rt"><span class="shimmer"></span></span><span class="rd">–</span></div>`).join("")}
-       <p class="load-note" id="load-note">Reaching into the Internet Archive…</p></div>`
+       <p class="load-note" id="load-note">Reaching into the library…</p></div>`
     : trackRows(d);
 
   const first = d.tracks[0];
   const coverArt = first ? artUrl(first.file) : null;
   const srcBadge = d.source === "guess" ? `<span class="src-badge warn">offline estimate — some lectures may be missing</span>`
-    : (d.source === "s3" ? `<span class="src-badge">live · titles arriving soon</span>` : (d.source === "meta" || d.source === "cache") ? `<span class="src-badge ok">complete · from Internet Archive metadata</span>` : "");
+    : (d.source === "s3" ? `<span class="src-badge">live · titles arriving soon</span>` : (d.source === "meta" || d.source === "cache") ? `<span class="src-badge ok">complete · from the full library</span>` : "");
 
   return `
   <div class="page-head dhead">
@@ -316,7 +330,6 @@ function viewDiscourse(key) {
         ${d.desc ? `<p class="ddesc" id="ddesc">${escapeHtml(d.desc)}</p>` : ""}
         <div class="dhead-actions">
           <button class="btn gold" data-playall ${loading ? "disabled" : ""}>${SVG.play} Play all</button>
-          <a class="btn ghost" href="${folderArchiveUrl(d.p)}" target="_blank" rel="noopener">On archive.org ${SVG.ext}</a>
         </div>
       </div>
     </div>
@@ -329,8 +342,8 @@ function viewDiscourse(key) {
     </div>
     <aside class="queue-panel">
       <h4>In this discourse</h4>
-      <p class="queue-hint">Click any lecture to begin. The player below keeps going, lecture after lecture, until you pause.</p>
-      <p class="queue-src">Streamed live from<br><a href="${IA_DETAILS}" target="_blank" rel="noopener">archive.org ${SVG.ext}</a></p>
+      <p class="queue-hint">Click any lecture to begin. The player keeps going, lecture after lecture, until you pause.</p>
+      <p class="queue-src">Curated by<br><b class="goldtext">ifallertzia</b></p>
     </aside>
   </div>`;
 }
@@ -356,29 +369,133 @@ function viewAbout() {
   return `
   <div class="page-head">
     <h1 class="page-title">About OSHOIC</h1>
-    <p class="page-sub">A listening room for the complete Osho World audio archive.</p>
+    <p class="page-sub">A listening room for the complete Osho discourses — from <b class="goldtext">ifallertzia</b>.</p>
   </div>
   <div class="about-body">
     <div class="about-medallion" aria-hidden="true">ॐ</div>
     <div>
       <h3>What this is</h3>
-      <p>OSHOIC is a fan-made listening space built around the public Internet Archive collection <a href="${IA_DETAILS}" target="_blank" rel="noopener">“OSHO Discourses Collection”</a> — the OSHO WORLD library of discourses in Hindi and English. It does not host any audio: every lecture streams directly from archive.org, so nothing is copied, stored, or altered here. Only the titles, themes and a quiet interface are ours.</p>
+      <p>OSHOIC is a fan-made listening space built and kept by <b class="goldtext">ifallertzia</b> — a single quiet place for the complete Osho discourses in Hindi and English. It does not host any audio: every lecture streams in on demand, so nothing is copied, stored, or altered here. Only the titles, the themes and the interface are ours.</p>
       <h3>How it works</h3>
-      <p>On first visit the site quietly talks to the Internet Archive’s metadata API and learns the full catalogue — ${fmtNum(s.discourses)} discourses, their lectures, titles, genres and durations — then remembers it on your device. When you open a discourse, its lecture list appears and playback begins straight from the Archive’s CDN. If the connection hiccups, the site falls back to its built-in catalogue so the shelves are never empty.</p>
+      <p>On first visit the site quietly learns the full catalogue — ${fmtNum(s.discourses)} discourses, their lectures, titles, genres and durations — and remembers it on your device, so the shelves are never empty. Open a discourse and playback begins straight away; the player keeps going, lecture after lecture, until you pause.</p>
       <h3>The teacher</h3>
-      <p>Osho (11 December 1889 – 19 January 1990), born Chandra Mohan Jain, taught from Varanasi and later Poona (Pune). His discourses move through Zen and Tao, the Upanishads and the Gita, Sufi and Jain poets, love, revolution and meditation. He left the body in 1990; the talks continue to be sought after, and this archive keeps them free and public.</p>
-      <h3>Gratitude</h3>
-      <p>Thank you to Osho World for assembling the collection, to the uploader and the curators at the Internet Archive for keeping it public, and to you — for listening slowly.</p>
+      <p>Osho (11 December 1889 – 19 January 1990), born Chandra Mohan Jain, taught from Varanasi and later Poona (Pune). His discourses move through Zen and Tao, the Upanishads and the Gita, Sufi and Jain poets, love, revolution and meditation. He left the body in 1990; the talks continue to be sought after, and OSHOIC keeps them one click away.</p>
+      <h3>With love</h3>
+      <p>For the teachers, for the keepers of these words, and for you — for listening slowly. <b class="goldtext">ifallertzia</b></p>
       <blockquote class="big-quote">“The miracle of consciousness is that you are no longer the doer; the doer has died. That which is is happening.” <span>— Osho</span></blockquote>
     </div>
+  </div>`;
+}
+
+function viewSadhana() {
+  const cards = [
+    {
+      t: "Dynamic Meditation",
+      meta: "For the restless mind · about 35 minutes",
+      intro: "Osho's first door — for those whose minds will not sit still. It uses effort to exhaust effort itself; the fifth stage arrives in silence by itself.",
+      steps: [
+        ["1", "Breathing — 7 min 20 sec", "Eyes open, no specific gaze. Breathing becomes circular and violent: through the nose, as if inhaling the whole universe; the exhale is an explosion through the mouth, as if pushing the whole universe out. No rhythm, no pattern."],
+        ["2", "Catharsis — 7 min 10 sec", "Stop breathing. Now let it all out: shake, dance, cry, laugh, shout — whatever the body wants. You are not responsible for it. This is the revolution of the inauthentic mind falling apart."],
+        ["3", "“Om” — 7 min 10 sec", "Suddenly stop. Sit down, close the eyes. At a chosen moment inhale and say “Om” — not forced, just allowed. The “Om” may come in waves. If it stops, let it stop. No compulsion."],
+        ["4", "Watching — 7 min 20 sec", "Be utterly still and watch. Body, breath, thoughts, feelings — watch everything happening inside and around, without choosing, without judging. The witness is meditating."],
+        ["5", "Celebration — 7 min 10 sec", "Be with the group: look into eyes, dance if it comes, be grateful. Then close the eyes for five minutes and be alone with the silence you have just found."],
+      ],
+    },
+    {
+      t: "Sahaj Meditation",
+      meta: "For the experienced · one hour",
+      intro: "“Sahaj” means natural, effortless. This is not done — it happens. Osho recommended it for those who already have some silence within.",
+      steps: [
+        ["1", "Watch the breath — 10–20 min", "Lie on the ground, spine straight. Simply watch the breath as it enters and leaves. Do not control it. The watching quiets the mind."],
+        ["2", "Movement — 15–30 min", "Rise and move: walk, dance, shake, stretch — however the body wants. Move with full awareness, as if every movement were a prayer."],
+        ["3", "Watching — 15–30 min", "Sit or lie down and watch: breath, body, thoughts. No effort, no method. When attention slips back into the stream, let it go."],
+        ["4", "Celebration & closing", "A moment of gratitude and silence, alone or with the group. Carry the sahaj — the naturalness — into the day."],
+      ],
+    },
+    {
+      t: "Meditation of Watchfulness",
+      meta: "The simplest door · one hour, any time",
+      intro: "Osho calls watchfulness the most powerful technique: the meditator becomes the watcher, and the watcher's silence is meditation itself.",
+      steps: [
+        ["1", "The body — 20 min", "Sit comfortably. Watch the body as if you have never seen it: hands, feet, heart, face. When the mind wanders, watch the wandering too."],
+        ["2", "The breath — 20 min", "Watch the breath without changing it — in and out, long or short. The breath is the bridge between body and mind."],
+        ["3", "The thoughts — 20 min", "Watch the thoughts come and go, like clouds in a sky. You are not the thought; you are the sky in which it passes."],
+      ],
+    },
+    {
+      t: "Meditation of Gratitude",
+      meta: "One hour, three rounds of twenty minutes",
+      intro: "Gratitude opens the heart the way breath opens the lungs. Osho taught it in three movements — for the universe, for all beings, and for oneself.",
+      steps: [
+        ["1", "For the earth & universe — 20 min", "Be grateful for the body, the breath, the earth, the sun, the food, the water, the air. Feel the gratitude as warmth spreading from the heart."],
+        ["2", "For all beings — 20 min", "Begin near — family, friends — and widen the circle: strangers, enemies, the whole of creation. Even to what has harmed you: gratitude dissolves the wound."],
+        ["3", "For yourself — 20 min", "Finally, be grateful to yourself — for the body that carries you, for the courage, for the searching. A person who is grateful for themselves has arrived home."],
+      ],
+    },
+  ];
+  const morning = [
+    "I greet the sun.", "I greet the birds.", "I greet the flowers.", "I greet the trees.",
+    "I greet the hills.", "I greet the mountains.", "I greet the rivers.", "I greet the lakes.",
+    "I greet the ponds.", "I greet the springs.", "I greet the clouds.", "I greet the rain.",
+    "I greet the snow.", "I greet the ice.", "I greet the stars.", "I greet the moon.",
+    "I greet the planets.", "I greet the universe.", "I greet every being.",
+    "I greet you. And I greet me.",
+    "I greet the universe. I greet the infinite. I greet the eternity.",
+  ];
+  const evening = [
+    "I greet the night. I greet the darkness.", "I greet the stars. I greet the moon.",
+    "I greet the planets. I greet the universe.", "I greet every being.",
+    "I greet you. And I greet me.",
+    "I greet the universe. I greet the infinite. I greet the eternity.",
+    "I rest. I sleep. I dream. And I let go.",
+  ];
+  return `
+  <div class="page-head">
+    <p class="hero-eyebrow" style="margin-bottom:6px">Sādhanā · daily practice</p>
+    <h1 class="page-title">Sadhana</h1>
+    <p class="page-sub">The seat comes first. The words come second — sit, and let the teaching enter.</p>
+  </div>
+
+  <div class="sadh-intro">
+    <blockquote class="big-quote" style="margin-top:0">“Meditation is the shortest way to the innermost core of your being. The mind is a barrier; meditation dissolves it. You cannot reach the innermost core of yourself with the mind — only in silence, in emptiness, in total stillness.” <span>— Osho</span></blockquote>
+  </div>
+
+  <div class="sadh-grid">
+    ${cards.map(c => `
+    <div class="sadh-card">
+      <p class="sadh-meta">${escapeHtml(c.meta)}</p>
+      <h3>${escapeHtml(c.t)}</h3>
+      <p class="sadh-intro-p">${escapeHtml(c.intro)}</p>
+      <ol class="sadh-steps">
+        ${c.steps.map(([n, h, b]) => `<li><b class="num">${n}</b><span><b class="sadh-step-h">${escapeHtml(h)}</b><br>${escapeHtml(b)}</span></li>`).join("")}
+      </ol>
+    </div>`).join("")}
+  </div>
+
+  <div class="sadh-prayers">
+    <div class="prayer-card">
+      <p class="sadh-meta">Every morning</p>
+      <h3>Morning Prayer</h3>
+      <p class="prayer">${morning.map(l => escapeHtml(l)).join("<br>")}</p>
+    </div>
+    <div class="prayer-card">
+      <p class="sadh-meta">Every night</p>
+      <h3>Evening Prayer</h3>
+      <p class="prayer">${evening.map(l => escapeHtml(l)).join("<br>")}</p>
+    </div>
+  </div>
+
+  <div class="sadh-cta">
+    <p>When the seat is ready, the teaching can speak.</p>
+    <a class="btn gold" href="#/browse">Sit with a discourse →</a>
   </div>`;
 }
 
 /* ---------------- sync badge ---------------- */
 function syncBadgeHtml() {
   const s = lib.sync;
-  if (s.state === "syncing") return `<span class="syncb sync" title="Learning the full catalogue from the Internet Archive">${SVG.ref}<i class="spin"></i> Library · ${s.done ? fmtNum(s.done) + " tracks" : "connecting"}</span>`;
-  if (s.state === "done") return `<span class="syncb ok" title="Full catalogue synced from archive.org">✓ Library synced</span>`;
+  if (s.state === "syncing") return `<span class="syncb sync" title="Learning the full catalogue">${SVG.ref}<i class="spin"></i> Library · ${s.done ? fmtNum(s.done) + " tracks" : "connecting"}</span>`;
+  if (s.state === "done") return `<span class="syncb ok" title="Full catalogue synced">✓ Library synced</span>`;
   if (s.state === "error") return `<span class="syncb err" title="${escapeHtml(s.error || "sync failed")} — built-in catalogue is in use">! Library offline</span>`;
   return `<span class="syncb" title="Catalogue loaded from the built-in list">Library ready</span>`;
 }
@@ -395,6 +512,7 @@ function render(scroll = true) {
   let html;
   if (state.page === "browse") html = viewBrowse();
   else if (state.page === "about") html = viewAbout();
+  else if (state.page === "sadhana") html = viewSadhana();
   else if (state.page === "d" && state.dKey) html = viewDiscourse(state.dKey);
   else html = viewHome();
 
@@ -402,7 +520,12 @@ function render(scroll = true) {
   view.innerHTML = html;
   const navPage = state.page === "d" ? "browse" : state.page;
   document.querySelectorAll("nav.main a").forEach(a => a.classList.toggle("on", a.dataset.nav === navPage));
-  document.title = state.page === "d" && lib.find(state.dKey) ? lib.find(state.dKey).t + " — OSHOIC" : "OSHOIC — The Osho Discourses Collection";
+  document.title =
+    state.page === "d" && lib.find(state.dKey) ? lib.find(state.dKey).t + " — OSHOIC"
+    : state.page === "sadhana" ? "Sadhana — OSHOIC"
+    : state.page === "about" ? "About — OSHOIC"
+    : "OSHOIC — The Osho Discourses Collection";
+  player.setBaseTitle(document.title);
   if (scroll) window.scrollTo(0, 0);
 
   bindView();
@@ -447,9 +570,15 @@ function bindView() {
   }
   const sort = view.querySelector("#sort");
   if (sort) sort.addEventListener("change", () => { state.sort = sort.value; location.hash = browseHash(); });
-  view.querySelectorAll(".chip[data-theme]").forEach(b => b.addEventListener("click", () => { state.theme = b.dataset.theme || null; state.genre = null; location.hash = browseHash(); }));
-  view.querySelectorAll(".chip[data-genre]").forEach(b => b.addEventListener("click", () => { state.genre = b.dataset.genre || null; state.theme = null; location.hash = browseHash(); }));
-  view.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => { state.q = ""; state.theme = null; state.genre = null; state.lang = "all"; location.hash = "#/browse"; }));
+  view.querySelectorAll("[data-fbtn]").forEach(b => b.addEventListener("click", () => {
+    const which = b.dataset.fbtn;
+    state.openPanel = state.openPanel === which ? null : which;
+    view.querySelectorAll(".fpanel").forEach(p => p.classList.toggle("open", p.dataset.panel === state.openPanel));
+    view.querySelectorAll("[data-fbtn]").forEach(x => x.classList.toggle("open", x.dataset.fbtn === state.openPanel));
+  }));
+  view.querySelectorAll(".chip[data-theme]").forEach(b => b.addEventListener("click", () => { state.theme = b.dataset.theme || null; state.genre = null; state.openPanel = null; location.hash = browseHash(); }));
+  view.querySelectorAll(".chip[data-genre]").forEach(b => b.addEventListener("click", () => { state.genre = b.dataset.genre || null; state.theme = null; state.openPanel = null; location.hash = browseHash(); }));
+  view.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => { state.q = ""; state.theme = null; state.genre = null; state.lang = "all"; state.openPanel = null; location.hash = "#/browse"; }));
   view.querySelectorAll("[data-play]").forEach(b => b.addEventListener("click", e => {
     e.preventDefault(); e.stopPropagation();
     playFirst(b.dataset.play);
@@ -468,7 +597,7 @@ function bindView() {
     player.loadDiscourse(d, idx >= 0 ? idx : 0);
   });
   const br = document.getElementById("btn-refresh");
-  if (br) br.addEventListener("click", () => { toast("Re-syncing with the Internet Archive…"); lib.startSync(true); render(); });
+  if (br) br.addEventListener("click", () => { toast("Re-syncing the library…"); lib.startSync(true); render(); });
   const ddesc = document.getElementById("ddesc");
   if (ddesc) ddesc.addEventListener("click", () => ddesc.classList.toggle("open"));
   bindRows();
@@ -541,7 +670,7 @@ lib.on("progress", () => {
   if (slot) slot.innerHTML = syncBadgeHtml();
   const note = document.getElementById("load-note");
   const d = state.dKey && lib.find(state.dKey);
-  if (note && d && !d.tracks.length) note.textContent = "Reaching into the Internet Archive… " + fmtNum(lib.sync.done) + " tracks learned so far";
+  if (note && d && !d.tracks.length) note.textContent = "Reaching into the library… " + fmtNum(lib.sync.done) + " tracks learned so far";
 });
 lib.on("updated", d => {
   if (state.dKey === d.key && state.page === "d") {
@@ -551,7 +680,7 @@ lib.on("updated", d => {
 });
 lib.on("done", () => {
   render(false);
-  toast("Full catalogue synced from the Internet Archive. 🙏", 5000);
+  toast("Library synced. 🙏", 5000);
 });
 
 /* ---------------- boot ---------------- */
