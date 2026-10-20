@@ -5,9 +5,10 @@ import { BAKED, FEATURED } from "./data.js";
 import { QUOTES, HERO_LINES } from "./quotes.js";
 import {
   escapeHtml, fmtNum, fmtTime, fmtTotal, isDevanagari,
-  themeOf, THEME_LIST, THEME_LABEL, artUrl,
+  themeOf, THEME_LIST, THEME_LABEL,
   store, CAT_KEY, LAST_KEY,
 } from "./util.js";
+import { coverUrlSync, hydrateCovers } from "./covers.js";
 
 /* ---------------- toasts ---------------- */
 let toastTimer;
@@ -67,14 +68,13 @@ function hueOf(key) {
   return h;
 }
 function cardCover(d, cls = "") {
-  const first = d.tracks[0];
   const hue = hueOf(d.key);
-  const art = first ? artUrl(first.file) : null;
+  const art = coverUrlSync(d);
   const badge = '<span class="cover-badge ' + (d.l === "hi" ? "hi" : "en") + '">' + (d.l === "hi" ? "हिन्दी" : "EN") + '</span>';
   const play = '<span class="cover-play" data-play="' + escapeHtml(d.key) + '" title="Play first lecture">' + SVG.play + '</span>';
-  const lotus = '<span class="cover-lotus">' + SVG.lotusSm + '</span>';
-  const img = art ? '<img loading="lazy" alt="" src="' + escapeHtml(art) + '" onerror="this.remove()">' : "";
-  return '<div class="cover ' + cls + '" style="--h:' + hue + '">' + lotus + img + '<span class="cover-veil"></span>' + play + badge + '</div>';
+  const book = '<div class="cover-book" aria-hidden="true"><span class="cover-osho">OSHO</span><span class="cover-lotus">' + SVG.lotusSm + '</span><span class="cover-ctitle' + (isDevanagari(d.t) ? " dev" : "") + '">' + escapeHtml(d.t) + '</span></div>';
+  const img = '<img class="cover-photo" loading="lazy" alt="" referrerpolicy="no-referrer"' + (art ? ' src="' + escapeHtml(art) + '"' : "") + ' onerror="this.remove()">';
+  return '<div class="cover ' + cls + '" style="--h:' + hue + '" data-cover-key="' + escapeHtml(d.key) + '" data-cover-title="' + escapeHtml(d.t) + '" data-cover-lang="' + d.l + '">' + book + img + '<span class="cover-veil"></span>' + play + badge + '</div>';
 }
 function cardMeta(d) {
   const parts = [];
@@ -308,8 +308,7 @@ function viewDiscourse(key) {
        <p class="load-note" id="load-note">Reaching into the library…</p></div>`
     : trackRows(d);
 
-  const first = d.tracks[0];
-  const coverArt = first ? artUrl(first.file) : null;
+  const coverArt = coverUrlSync(d);
   const srcBadge = d.source === "guess" ? `<span class="src-badge warn">offline estimate — some lectures may be missing</span>`
     : (d.source === "s3" ? `<span class="src-badge">live · titles arriving soon</span>` : (d.source === "meta" || d.source === "cache") ? `<span class="src-badge ok">complete · from the full library</span>` : "");
 
@@ -317,8 +316,10 @@ function viewDiscourse(key) {
   <div class="page-head dhead">
     <a class="back" href="#/browse">← All discourses</a>
     <div class="dhead-grid">
-      <div class="dcover ${coverArt ? "" : "gen"}" ${coverArt ? 'style="--art:url(' + coverArt.replace(/'/g, "%27") + ')"' : 'style="--h:' + hueOf(d.key) + '"'}>
-        ${coverArt ? "" : '<span class="cover-lotus">' + SVG.lotusSm + '</span>'}
+      <div class="dcover ${coverArt ? "has-art" : "gen"}" style="--h:${hueOf(d.key)}" data-cover-key="${escapeHtml(d.key)}" data-cover-title="${escapeHtml(d.t)}" data-cover-lang="${d.l}">
+        <div class="cover-book" aria-hidden="true"><span class="cover-osho">OSHO</span><span class="cover-lotus">${SVG.lotusSm}</span><span class="cover-ctitle${dev}">${escapeHtml(d.t)}</span></div>
+        <img class="cover-photo" alt="" referrerpolicy="no-referrer"${coverArt ? ' src="' + escapeHtml(coverArt) + '"' : ""} onerror="this.remove()">
+        <span class="cover-veil"></span>
       </div>
       <div class="dhead-body">
         <div class="dhead-tags">
@@ -527,6 +528,7 @@ function render(scroll = true) {
   if (scroll) window.scrollTo(0, 0);
 
   bindView();
+  hydrateCovers(view);
   if (restoreQ) {
     const qi = view.querySelector("#q");
     if (qi) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }

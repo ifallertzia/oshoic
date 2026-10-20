@@ -1,6 +1,7 @@
 /* OSHOIC — player (audio engine + dock UI) */
 import lib from "./library.js";
-import { fileUrl, artUrl, fmtTime, store, PREFS_KEY, LAST_KEY, escapeHtml } from "./util.js";
+import { fileUrl, fmtTime, store, PREFS_KEY, LAST_KEY } from "./util.js";
+import { coverUrlSync, resolveCover } from "./covers.js";
 
 const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
 
@@ -74,6 +75,23 @@ class Player {
     this._saveLast();
   }
 
+  _setArt(url) {
+    if (!this.el.art) return;
+    if (url) {
+      this.el.art.style.backgroundImage = "url(" + JSON.stringify(url) + ")";
+      this.el.art.classList.remove("noimg");
+      const pre = new Image();
+      pre.referrerPolicy = "no-referrer";
+      pre.onerror = () => {
+        if (this.el.art) this.el.art.classList.add("noimg");
+      };
+      pre.src = url;
+    } else {
+      this.el.art.style.backgroundImage = "none";
+      this.el.art.classList.add("noimg");
+    }
+  }
+
   _loadCurrent() {
     const t = this.cur();
     if (!t) return;
@@ -82,13 +100,12 @@ class Player {
       this.a.src = url;
       this.a.load();
     }
-    const art = artUrl(t.file);
-    if (art && this.el.art) {
-      this.el.art.style.backgroundImage = "url('" + art + "')";
-      this.el.art.classList.remove("noimg");
-      const pre = new Image();
-      pre.onerror = () => this.el.art.classList.add("noimg");
-      pre.src = art;
+    this._setArt(this.d ? coverUrlSync(this.d) : null);
+    if (this.d) {
+      const disc = this.d;
+      resolveCover(disc).then(url => {
+        if (this.d === disc && url) this._setArt(url);
+      });
     }
     if (this.el.title) this.el.title.textContent = t.t || ("Lecture " + pad2(t.n));
     if (this.el.sub) this.el.sub.textContent = this.d.t + (this.d.l === "hi" ? "  ·  हिन्दी" : "");
@@ -194,8 +211,8 @@ class Player {
         artist: "Osho",
         album: this.d ? this.d.t : "OSHOIC",
       };
-      const art = t && artUrl(t.file);
-      if (art) meta.artwork = [{ src: art, sizes: "300x300", type: "image/png" }];
+      const art = this.d && coverUrlSync(this.d);
+      if (art) meta.artwork = [{ src: art, sizes: "400x400", type: "image/jpeg" }];
       navigator.mediaSession.metadata = new MediaMetadata(meta);
       navigator.mediaSession.setActionHandler("play", () => this._play());
       navigator.mediaSession.setActionHandler("pause", () => this.a.pause());
