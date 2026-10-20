@@ -540,7 +540,8 @@ function render(scroll = true) {
 
 async function maybeLoadTracks(key) {
   const d = lib.find(key);
-  if (!d || d.tracks.length) return;
+  if (!d) return;
+  if (d.tracks.length) { player.prepare(d.tracks[0]); return; }
   const res = await lib.tracksFor(d);
   if (state.dKey !== key || state.page !== "d") return;
   d.tracks = res.tracks;
@@ -555,6 +556,7 @@ async function maybeLoadTracks(key) {
   if (note) note.remove();
   const btn = document.querySelector("[data-playall]");
   if (btn) btn.disabled = false;
+  player.prepare(d.tracks[0]);
 }
 
 function bindView() {

@@ -58,7 +58,7 @@ export function guessTracks(d, maxGuess = 15) {
   const tracks = [];
   for (let i = 1; i <= n; i++) {
     const file = "OSHO-" + slug + "_" + String(i).padStart(2, "0") + ".mp3";
-    tracks.push({ n: i, t: null, file, guessed: true });
+    tracks.push({ n: i, t: null, file: d.p + "/" + file, guessed: true });
   }
   return tracks;
 }

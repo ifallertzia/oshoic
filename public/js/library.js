@@ -117,12 +117,17 @@ class Library {
     return this._s3cache.get(folder) || null;
   }
 
-  async listDiscourseS3(d) {
+  async listDiscourseS3(d, timeoutMs = 4000) {
     if (this._s3cache.has(d.p)) return this._s3cache.get(d.p);
     const url = S3_BASE + encodeURIComponent(d.p + "/");
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("s3 " + res.status);
-    const txt = await res.text();
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let txt;
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("s3 " + res.status);
+      txt = await res.text();
+    } finally { clearTimeout(timer); }
     const doc = new DOMParser().parseFromString(txt, "text/xml");
     const keys = [...doc.getElementsByTagName("Key")].map(k => k.textContent).filter(Boolean);
     const mp3s = keys
@@ -271,19 +276,22 @@ class Library {
   }
 
   /* ---------------- track resolution for a discourse ---------------- */
-  async tracksFor(d, { timeoutMs = 20000 } = {}) {
+  async tracksFor(d, { timeoutMs = 4000 } = {}) {
     if (d.tracks.length) return { tracks: d.tracks, source: d.source };
+    const deadline = Date.now() + timeoutMs;
     if (this.s3ok) {
-      try { return { tracks: await this.listDiscourseS3(d), source: "s3" }; } catch (e) { /* fall through */ }
+      try { return { tracks: await this.listDiscourseS3(d, timeoutMs), source: "s3" }; } catch (e) { /* fall through */ }
     }
+    // Metadata may have arrived while the S3 request was in flight.
+    if (d.tracks.length) return { tracks: d.tracks, source: d.source };
     // wait for the background sync to enrich this discourse
-    if (this.sync.state === "syncing") {
+    if (this.sync.state === "syncing" && Date.now() < deadline) {
       await new Promise(resolve => {
         const finish = () => { clearTimeout(timer); this.listeners.get(undefined)?.delete(handler); resolve(); };
         const handler = () => {
           if (d.tracks.length || this.sync.state !== "syncing") finish();
         };
-        const timer = setTimeout(handler, timeoutMs);
+        const timer = setTimeout(finish, Math.max(0, deadline - Date.now()));
         const generic = this.listeners.get(undefined) || new Set();
         generic.add(handler);
         this.listeners.set(undefined, generic);
