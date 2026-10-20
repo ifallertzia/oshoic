@@ -147,6 +147,30 @@ class Player {
     const A = this.a;
     if (A.duration) A.currentTime = frac * A.duration;
   }
+
+  /* Download the current lecture (blob when allowed, new tab otherwise). */
+  async download() {
+    const t = this.cur();
+    if (!t || !t.file) { this.onToast && this.onToast("Play a lecture first — then you can save it."); return; }
+    const url = fileUrl(t.file);
+    const name = decodeURIComponent(t.file.split("/").pop() || "lecture.mp3");
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("http");
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      this.onToast && this.onToast("Download started — “" + name + "”. 🙏");
+    } catch (e) {
+      window.open(url, "_blank", "noopener");
+      this.onToast && this.onToast("Opening the lecture in a new tab — save it from there.");
+    }
+  }
   setVol(v) {
     this.a.volume = v;
     this._prefs.vol = v;
@@ -213,9 +237,11 @@ class Player {
     this.el.dur = $("[data-p=dur]");
     this.el.speed = $("[data-p=speed]");
     this.el.vol = $("[data-p=vol]");
+    this.el.dl = $("[data-p=download]");
     if (this.el.speed) this.el.speed.textContent = this._prefs.speed + "×";
     if (this.el.vol) { this.el.vol.value = this._prefs.vol; }
 
+    this.el.dl && this.el.dl.addEventListener("click", () => this.download());
     this.el.play && this.el.play.addEventListener("click", () => this.toggle());
     this.el.prev && this.el.prev.addEventListener("click", () => this.prev());
     this.el.next && this.el.next.addEventListener("click", () => this.next(false));

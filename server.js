@@ -44,14 +44,14 @@ const server = http.createServer((req, res) => {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) {
       // SPA fallback → index.html (hash routing means this rarely triggers)
-      res.writeHead(200, { "content-type": MIME[".html"], "cache-control": "no-cache" });
+      res.writeHead(200, { "content-type": MIME[".html"], "cache-control": "no-store" });
       fs.createReadStream(path.join(ROOT, "index.html")).pipe(res);
       return;
     }
     const ext = path.extname(file).toLowerCase();
     res.writeHead(200, {
       "content-type": MIME[ext] || "application/octet-stream",
-      "cache-control": ext === ".html" ? "no-cache" : "public, max-age=300",
+      "cache-control": "no-store",
       "cross-origin-resource-policy": "cross-origin",
     });
     fs.createReadStream(file).pipe(res);

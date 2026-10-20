@@ -120,16 +120,13 @@ function viewHome() {
   const cont = lastPlayed();
   const featured = FEATURED.map(t => lib.discourses.find(d => d.t.toLowerCase().includes(t.toLowerCase()))).filter(Boolean).slice(0, 8);
   const themes = THEME_LIST.map(tm => ({ ...tm, c: lib.discourses.filter(d => themeOf(d.t) === tm.id).length })).filter(t => t.c >= 3);
-  const en = lib.discourses.filter(d => d.l === "en").length;
-  const hi = lib.discourses.filter(d => d.l === "hi").length;
 
   return `
   <section class="hero">
     <div class="hero-mandala" aria-hidden="true">${SVG.mandala || ""}</div>
     <div class="hero-inner">
-      <p class="hero-eyebrow">The Collected Discourses · ${fmtNum(s.discourses)} discourses · हिन्दी + English</p>
       <h1 class="hero-title">OSHO<span class="dot">IC</span></h1>
-      <p class="hero-sub">Every teaching, one quiet place. ${fmtNum(s.discourses)} discourses — ${fmtNum(s.lectures)}+ lectures in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
+      <p class="hero-sub">Every teaching, one quiet place. ${fmtNum(s.lectures)}+ lectures in Hindi and English, gathered and kept by <b class="goldtext">ifallertzia</b>, ready to play.</p>
       <div class="hero-cta">
         <a class="btn gold" href="#/browse">Browse all discourses</a>
         <a class="btn ghost" href="${featured[0] ? "#/d/" + encodeURIComponent(featured[0].key) : "#/browse"}">${featured[0] ? "Start with " + escapeHtml(featured[0].t) : "Begin"}</a>
@@ -137,7 +134,6 @@ function viewHome() {
       <div class="hero-quote" id="hero-quote">${quoteLine(0)}</div>
     </div>
     <div class="hero-stats">
-      <div class="stat"><b>${fmtNum(s.discourses)}</b><span>discourses</span></div>
       <div class="stat"><b>${fmtNum(s.lectures)}+</b><span>lectures</span></div>
       <div class="stat"><b>${s.hours ? fmtNum(s.hours) : "≈6,500"}${s.hours ? "" : "+"}</b><span>hours of teaching</span></div>
       <div class="stat"><b>2</b><span>languages</span></div>
@@ -164,12 +160,17 @@ function viewHome() {
   </section>
 
   <section class="section">
-    <div class="section-head"><h2>Enter through a theme</h2><p class="section-sub">Twelve doors into the same teaching.</p></div>
-    <div class="theme-grid">
-      ${themes.map(t => `
-      <a class="theme" href="#/browse?theme=${t.id}">
-        <b>${escapeHtml(t.label)}</b><span>${t.c} discourses</span>
-      </a>`).join("")}
+    <div class="section-head"><h2>Enter through a theme</h2><p class="section-sub">Doors into the same teaching.</p></div>
+    <div class="filters">
+      <button class="filter-btn ${state.openPanel === "home-themes" ? "open" : ""}" data-fbtn="home-themes"><span class="lbl">Show themes</span><span class="caret">▾</span></button>
+    </div>
+    <div class="fpanel panel-wide ${state.openPanel === "home-themes" ? "open" : ""}" data-panel="home-themes">
+      <div class="theme-grid">
+        ${themes.map(t => `
+        <a class="theme" href="#/browse?theme=${t.id}">
+          <b>${escapeHtml(t.label)}</b>
+        </a>`).join("")}
+      </div>
     </div>
   </section>
 
@@ -179,12 +180,12 @@ function viewHome() {
       <a class="lang-card en" href="#/browse?lang=en">
         <span class="lang-glyph">EN</span>
         <b>English</b>
-        <span class="lang-count">${fmtNum(en)} discourses · Zen, Tao, Upanishads, Sufis, poetry…</span>
+        <span class="lang-count">Zen, Tao, Upanishads, Sufis, poetry…</span>
       </a>
       <a class="lang-card hi" href="#/browse?lang=hi">
         <span class="lang-glyph">हि</span>
         <b>हिन्दी</b>
-        <span class="lang-count">${fmtNum(hi)} discourses · महागीता, कबीर, महावीर, भजन-काव्य…</span>
+        <span class="lang-count">महागीता, कबीर, महावीर, भजन-काव्य…</span>
       </a>
     </div>
   </section>
@@ -252,7 +253,7 @@ function viewBrowse() {
   return `
   <div class="page-head">
     <h1 class="page-title">Discourses</h1>
-    <p class="page-sub">${fmtNum(list.length)} of ${fmtNum(all.length)} discourses ${state.q ? "matching “" + escapeHtml(state.q) + "”" : ""}</p>
+    <p class="page-sub">${state.q || state.theme || state.genre || state.lang !== "all" ? `${fmtNum(list.length)} discourses${state.q ? " matching “" + escapeHtml(state.q) + "”" : ""}` : "Every teaching, gathered quietly"}</p>
   </div>
 
   <div class="toolbar">
@@ -274,7 +275,7 @@ function viewBrowse() {
 
   <div class="filters">
     <button class="filter-btn ${state.openPanel === "theme" ? "open" : ""} ${state.theme ? "active" : ""}" data-fbtn="theme">
-      <span class="lbl">${state.theme ? escapeHtml(THEME_LABEL[state.theme] || state.theme) : "Select theme"}</span><span class="caret">▾</span>
+      <span class="lbl">${state.theme ? escapeHtml(THEME_LABEL[state.theme] || state.theme) : "Show themes"}</span><span class="caret">▾</span>
     </button>
     <button class="filter-btn ${state.openPanel === "genre" ? "open" : ""} ${state.genre ? "active" : ""}" data-fbtn="genre">
       <span class="lbl">${state.genre ? escapeHtml(state.genre) : "Show genres"}</span><span class="caret">▾</span>
@@ -365,7 +366,6 @@ function eqBars() {
 }
 
 function viewAbout() {
-  const s = lib.stats();
   return `
   <div class="page-head">
     <h1 class="page-title">About OSHOIC</h1>
@@ -375,9 +375,7 @@ function viewAbout() {
     <div class="about-medallion" aria-hidden="true">ॐ</div>
     <div>
       <h3>What this is</h3>
-      <p>OSHOIC is a fan-made listening space built and kept by <b class="goldtext">ifallertzia</b> — a single quiet place for the complete Osho discourses in Hindi and English. It does not host any audio: every lecture streams in on demand, so nothing is copied, stored, or altered here. Only the titles, the themes and the interface are ours.</p>
-      <h3>How it works</h3>
-      <p>On first visit the site quietly learns the full catalogue — ${fmtNum(s.discourses)} discourses, their lectures, titles, genres and durations — and remembers it on your device, so the shelves are never empty. Open a discourse and playback begins straight away; the player keeps going, lecture after lecture, until you pause.</p>
+      <p>OSHOIC is a fan-made listening space — the <b class="goldtext">ifallertzia</b> library — for the complete Osho discourses in Hindi and English. Nothing is copied, stored or altered here: every lecture streams directly from the ifallertzia server the moment you press play. Only the titles, the themes and the interface are ours.</p>
       <h3>The teacher</h3>
       <p>Osho (11 December 1889 – 19 January 1990), born Chandra Mohan Jain, taught from Varanasi and later Poona (Pune). His discourses move through Zen and Tao, the Upanishads and the Gita, Sufi and Jain poets, love, revolution and meditation. He left the body in 1990; the talks continue to be sought after, and OSHOIC keeps them one click away.</p>
       <h3>With love</h3>
@@ -494,7 +492,7 @@ function viewSadhana() {
 /* ---------------- sync badge ---------------- */
 function syncBadgeHtml() {
   const s = lib.sync;
-  if (s.state === "syncing") return `<span class="syncb sync" title="Learning the full catalogue">${SVG.ref}<i class="spin"></i> Library · ${s.done ? fmtNum(s.done) + " tracks" : "connecting"}</span>`;
+  if (s.state === "syncing") return `<span class="syncb sync" title="Learning the full catalogue">${SVG.ref}<i class="spin"></i> Library · syncing</span>`;
   if (s.state === "done") return `<span class="syncb ok" title="Full catalogue synced">✓ Library synced</span>`;
   if (s.state === "error") return `<span class="syncb err" title="${escapeHtml(s.error || "sync failed")} — built-in catalogue is in use">! Library offline</span>`;
   return `<span class="syncb" title="Catalogue loaded from the built-in list">Library ready</span>`;
@@ -670,7 +668,7 @@ lib.on("progress", () => {
   if (slot) slot.innerHTML = syncBadgeHtml();
   const note = document.getElementById("load-note");
   const d = state.dKey && lib.find(state.dKey);
-  if (note && d && !d.tracks.length) note.textContent = "Reaching into the library… " + fmtNum(lib.sync.done) + " tracks learned so far";
+  if (note && d && !d.tracks.length) note.textContent = "Reaching into the library…";
 });
 lib.on("updated", d => {
   if (state.dKey === d.key && state.page === "d") {
