@@ -25,14 +25,25 @@ class Library {
     this.order = [];             // stable display order (baked first, then new)
     this.s3ok = false;
     this.sync = { state: "idle", done: 0, pages: 0, error: null };
-    this.listeners = new Set();
+    this.listeners = new Map(); // event -> Set<fn>; undefined key = generic listeners
     this._s3cache = new Map();
     this._started = false;
     this._token = 0;
   }
 
   on(fn) { this.listeners.add(fn); }
-  emit(ev, data) { for (const fn of this.listeners) { try { fn(ev, data); } catch (e) { console.warn(e); } } }
+  on(ev, fn) {
+    let set = this.listeners.get(ev);
+    if (!set) { set = new Set(); this.listeners.set(ev, set); }
+    set.add(fn);
+  }
+  emit(ev, data) {
+    const set = this.listeners.get(ev);
+    if (set) { for (const fn of set) { try { fn(data); } catch (e) { console.warn(e); } } }
+    // generic listeners (used while a sync is in flight)
+    const gen = this.listeners.get(undefined);
+    if (gen) { for (const fn of gen) { try { fn(data); } catch (e) { console.warn(e); } } }
+  }
 
   /* ---------------- bootstrap ---------------- */
   init() {
@@ -268,12 +279,14 @@ class Library {
     // wait for the background sync to enrich this discourse
     if (this.sync.state === "syncing") {
       await new Promise(resolve => {
-        const finish = () => { clearTimeout(timer); this.listeners.delete(handler); resolve(); };
+        const finish = () => { clearTimeout(timer); this.listeners.get(undefined)?.delete(handler); resolve(); };
         const handler = () => {
           if (d.tracks.length || this.sync.state !== "syncing") finish();
         };
         const timer = setTimeout(handler, timeoutMs);
-        this.listeners.add(handler);
+        const generic = this.listeners.get(undefined) || new Set();
+        generic.add(handler);
+        this.listeners.set(undefined, generic);
       });
       if (d.tracks.length) return { tracks: d.tracks, source: d.source };
     }
