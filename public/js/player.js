@@ -1,5 +1,6 @@
 /* OSHOIC — player (audio engine + dock UI) */
 import lib from "./library.js";
+import { downloadAudio } from "./download.js";
 import { fileUrl, fmtTime, store, PREFS_KEY, LAST_KEY } from "./util.js";
 import { coverUrlSync, resolveCover } from "./covers.js";
 
@@ -8,7 +9,7 @@ const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
 class Player {
   constructor() {
     this.a = new Audio();
-    this.a.preload = "none";
+    this.a.preload = "auto";
     this.queue = [];
     this.qi = -1;
     this.d = null;            // current discourse
@@ -62,6 +63,16 @@ class Player {
 
   /* ---------------- queue control ---------------- */
   cur() { return this.queue[this.qi] || null; }
+
+  // Warm the first lecture on its detail page without interrupting a queue.
+  prepare(track) {
+    if (this.queue.length || !track || !track.file || navigator.connection?.saveData) return;
+    const url = fileUrl(track.file);
+    if (this.a.src !== url) {
+      this.a.src = url;
+      this.a.load();
+    }
+  }
 
   loadDiscourse(d, qi = 0, { play = true } = {}) {
     if (!d || !d.tracks.length) return;
@@ -196,24 +207,15 @@ class Player {
     if (!t || !t.file) { this.onToast && this.onToast("Play a lecture first — then you can save it."); return; }
     const url = fileUrl(t.file);
     const name = decodeURIComponent(t.file.split("/").pop() || "lecture.mp3");
-    this._dlCtrl = new AbortController();
+    if (this._dlCtrl) return;
+    const ctrl = this._dlCtrl = new AbortController();
     this._dlShow(0);
     try {
-      const res = await fetch(url, { signal: this._dlCtrl.signal });
-      if (!res.ok) throw new Error("http");
-      const total = parseInt(res.headers.get("content-length") || "0", 10);
-      const reader = res.body.getReader();
-      const chunks = [];
-      let loaded = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        loaded += value.length;
-        if (total) this._dlPct((loaded / total) * 100);
-      }
+      const blob = await downloadAudio(url, {
+        signal: ctrl.signal,
+        onProgress: pct => this._dlPct(pct),
+      });
       this._dlHide();
-      const blob = new Blob(chunks, { type: res.headers.get("content-type") || "audio/mpeg" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = name;
@@ -224,7 +226,7 @@ class Player {
       this.onToast && this.onToast("Downloaded — “" + name + "”. 🙏");
     } catch (e) {
       this._dlHide();
-      if (this._dlCtrl && e.name === "AbortError") { this.onToast && this.onToast("Download cancelled."); return; }
+      if (ctrl.signal.aborted || e.name === "AbortError") { this.onToast && this.onToast("Download cancelled."); return; }
       window.open(url, "_blank", "noopener");
       this.onToast && this.onToast("Opening the lecture in a new tab — save it from there.");
     } finally {
